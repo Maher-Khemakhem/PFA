@@ -34,7 +34,8 @@ const WS_URL =
   "http://localhost:8082/ws/chat";
 
 const ATTACHMENT_PREFIX = "__ATTACHMENT__:";
-const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024; // 3 MB raw file size
+const MAX_MESSAGE_BYTES = 5 * 1024 * 1024; // WebSocket message limit
 
 function formatTime(value: string) {
   const dt = new Date(value);
@@ -152,6 +153,7 @@ export default function OrgChatPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const stompRef = useRef<Client | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const pendingMessagesRef = useRef<Set<string>>(new Set());
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["org-chat-projects", userName],
@@ -190,11 +192,21 @@ export default function OrgChatPage() {
         client.subscribe(`/topic/projects/${selectedProjectId}`, (frame) => {
           try {
             const payload = JSON.parse(frame.body) as ChatMessage;
+            if (payload.senderEmail === userEmail && pendingMessagesRef.current.has(payload.content)) {
+              pendingMessagesRef.current.delete(payload.content);
+              return;
+            }
             setMessages((prev) => [...prev, payload]);
           } catch {
             // ignore malformed messages
           }
         });
+      },
+      onStompError: () => {
+        toast.error("Erreur de connexion au chat");
+      },
+      onWebSocketError: () => {
+        toast.error("WebSocket indisponible");
       },
     });
 
@@ -216,9 +228,32 @@ export default function OrgChatPage() {
     [selectedProject],
   );
 
+  const appendLocalMessage = (content: string) => {
+    if (!selectedProjectId || !userEmail) return;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        projectId: selectedProjectId,
+        senderEmail: userEmail,
+        senderName: userName || userEmail,
+        content,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+  };
+
   const sendMessage = (content: string) => {
     const trimmed = content.trim();
-    if (!trimmed || !selectedProjectId || !userEmail) return;
+    if (!trimmed) return false;
+    if (!selectedProjectId || !userEmail) {
+      toast.error("Selectionnez un projet pour envoyer un fichier");
+      return false;
+    }
+    if (!stompRef.current?.connected) {
+      toast.error("Connexion chat indisponible. Reessayez.");
+      return false;
+    }
 
     const payload = {
       projectId: selectedProjectId,
@@ -231,11 +266,15 @@ export default function OrgChatPage() {
       destination: "/app/chat.send",
       body: JSON.stringify(payload),
     });
+    pendingMessagesRef.current.add(trimmed);
+    appendLocalMessage(trimmed);
+    return true;
   };
 
   const handleSend = () => {
-    sendMessage(draft);
-    setDraft("");
+    if (sendMessage(draft)) {
+      setDraft("");
+    }
   };
 
   const handleScheduleMeeting = () => {
@@ -263,7 +302,7 @@ export default function OrgChatPage() {
     const recap = recapText.trim();
     if (!recap) return;
     const content = ["Compte rendu", recap].join("\n");
-    sendMessage(content);
+    if (!sendMessage(content)) return;
     setRecapOpen(false);
     setRecapText("");
   };
@@ -275,7 +314,7 @@ export default function OrgChatPage() {
     const content = ["Lien utile", url, note ? `Note: ${note}` : ""]
       .filter(Boolean)
       .join("\n");
-    sendMessage(content);
+    if (!sendMessage(content)) return;
     setLinkOpen(false);
     setLinkUrl("");
     setLinkNote("");
@@ -291,7 +330,15 @@ export default function OrgChatPage() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_ATTACHMENT_BYTES) {
-      toast.error("Fichier trop volumineux (max 2 MB)");
+      toast.error("Fichier trop volumineux (max 3 MB)");
+      event.target.value = "";
+      return;
+    }
+
+    const estimatedBase64Bytes = Math.ceil(file.size / 3) * 4;
+    const estimatedPayloadBytes = estimatedBase64Bytes + 512;
+    if (estimatedPayloadBytes > MAX_MESSAGE_BYTES) {
+      toast.error("Fichier trop volumineux pour l'envoi dans le chat");
       event.target.value = "";
       return;
     }
@@ -304,7 +351,9 @@ export default function OrgChatPage() {
         size: file.size,
         dataUrl,
       };
-      sendMessage(`${ATTACHMENT_PREFIX}${JSON.stringify(payload)}`);
+      if (sendMessage(`${ATTACHMENT_PREFIX}${JSON.stringify(payload)}`)) {
+        toast.success("Fichier envoye");
+      }
     } catch {
       toast.error("Impossible de lire le fichier");
     } finally {

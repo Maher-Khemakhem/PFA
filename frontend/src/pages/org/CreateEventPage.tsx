@@ -27,6 +27,7 @@ export default function CreateEventPage() {
     { name: '', logo: '' },
   ]);
   const [galleryPhotos, setGalleryPhotos] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const createMutation = useMutation({
     mutationFn: createEvent,
@@ -41,14 +42,22 @@ export default function CreateEventPage() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
 
     if (!userEmail) {
       toast.error('Veuillez vous connecter');
       return;
     }
-
-    if (!formData.titre || !formData.description || !formData.type || !formData.lieu || !formData.dateHeure || formData.nombrePlaces <= 0) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    const nextErrors: Record<string, string> = {};
+    if (!formData.titre.trim()) nextErrors.titre = 'Titre obligatoire.';
+    if (!formData.description.trim()) nextErrors.description = 'Description obligatoire.';
+    if (!formData.type) nextErrors.type = 'Type obligatoire.';
+    if (!formData.lieu.trim()) nextErrors.lieu = 'Lieu obligatoire.';
+    if (!formData.dateHeure) nextErrors.dateHeure = 'Date et heure obligatoires.';
+    if (!formData.nombrePlaces || formData.nombrePlaces <= 0) nextErrors.nombrePlaces = 'Nombre de places invalide.';
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      toast.error('Veuillez corriger les champs en erreur');
       return;
     }
 
@@ -85,8 +94,12 @@ export default function CreateEventPage() {
   const handleAfficheChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
-    setFormData({ ...formData, affiche: dataUrl });
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setFormData({ ...formData, affiche: dataUrl });
+    } catch {
+      toast.error('Impossible de lire l\'image sélectionnée');
+    }
   };
 
   const handlePartnerNameChange = (index: number, value: string) => {
@@ -96,8 +109,12 @@ export default function CreateEventPage() {
   const handlePartnerLogoChange = async (index: number, event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
-    setPartners((prev) => prev.map((partner, i) => (i === index ? { ...partner, logo: dataUrl } : partner)));
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setPartners((prev) => prev.map((partner, i) => (i === index ? { ...partner, logo: dataUrl } : partner)));
+    } catch {
+      toast.error('Impossible de lire le logo sélectionné');
+    }
   };
 
   const addPartner = () => {
@@ -111,9 +128,13 @@ export default function CreateEventPage() {
   const handleGalleryPhotos = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
-    const dataUrls = await Promise.all(Array.from(files).map(readFileAsDataUrl));
-    setGalleryPhotos((prev) => [...prev, ...dataUrls]);
-    event.target.value = '';
+    try {
+      const dataUrls = await Promise.all(Array.from(files).map(readFileAsDataUrl));
+      setGalleryPhotos((prev) => [...prev, ...dataUrls]);
+      event.target.value = '';
+    } catch {
+      toast.error('Impossible de lire les images sélectionnées');
+    }
   };
 
   const removeGalleryPhoto = (index: number) => {
@@ -133,6 +154,7 @@ export default function CreateEventPage() {
               onChange={(e) => setFormData({ ...formData, titre: e.target.value })}
               required
             />
+            {fieldErrors.titre && <p className="text-xs text-destructive">{fieldErrors.titre}</p>}
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -143,6 +165,7 @@ export default function CreateEventPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               required
             />
+            {fieldErrors.description && <p className="text-xs text-destructive">{fieldErrors.description}</p>}
           </div>
           <div className="space-y-2">
             <Label>Type</Label>
@@ -155,6 +178,7 @@ export default function CreateEventPage() {
                 <SelectItem value="Séminaire">Séminaire</SelectItem>
               </SelectContent>
             </Select>
+            {fieldErrors.type && <p className="text-xs text-destructive">{fieldErrors.type}</p>}
           </div>
           <div className="space-y-2">
             <Label>Lieu</Label>
@@ -164,6 +188,7 @@ export default function CreateEventPage() {
               onChange={(e) => setFormData({ ...formData, lieu: e.target.value })}
               required
             />
+            {fieldErrors.lieu && <p className="text-xs text-destructive">{fieldErrors.lieu}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -174,6 +199,7 @@ export default function CreateEventPage() {
                 onChange={(e) => setFormData({ ...formData, dateHeure: e.target.value })}
                 required
               />
+              {fieldErrors.dateHeure && <p className="text-xs text-destructive">{fieldErrors.dateHeure}</p>}
             </div>
             <div className="space-y-2">
               <Label>Nombre de places</Label>
@@ -184,6 +210,7 @@ export default function CreateEventPage() {
                 onChange={(e) => setFormData({ ...formData, nombrePlaces: parseInt(e.target.value) || 0 })}
                 required
               />
+              {fieldErrors.nombrePlaces && <p className="text-xs text-destructive">{fieldErrors.nombrePlaces}</p>}
             </div>
           </div>
           <div className="space-y-2">

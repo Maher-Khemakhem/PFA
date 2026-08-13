@@ -24,6 +24,9 @@ export default function SignupStudentPage() {
   const [faculte, setFaculte] = useState("");
   const [specialite, setSpecialite] = useState("");
   const [idUniversitaire, setIdUniversitaire] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const emailPattern = /^[^\s@]+@[^\s@-]+-fst\.utm\.tn$/i;
 
   const { data: competencesList = [] } = useQuery<string[]>({
     queryKey: ['competences'],
@@ -56,16 +59,43 @@ export default function SignupStudentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUpStudent({
-      email,
-      password,
-      name: `${prenom} ${nom}`.trim(),
-      faculte,
-      specialite,
-      idUniversitaire,
-      competences,
-    });
-    navigate('/dashboard');
+    setFormError(null);
+    const nextErrors: Record<string, string> = {};
+    if (!nom.trim()) nextErrors.nom = 'Nom obligatoire.';
+    if (!prenom.trim()) nextErrors.prenom = 'Prénom obligatoire.';
+    if (!email.trim()) {
+      nextErrors.email = 'Email obligatoire.';
+    } else if (!emailPattern.test(email.trim())) {
+      nextErrors.email = 'Email invalide (ex: prenom.nom@club-fst.utm.tn).';
+    }
+    if (!password.trim()) {
+      nextErrors.password = 'Mot de passe obligatoire.';
+    } else if (password.trim().length < 6) {
+      nextErrors.password = 'Mot de passe trop court (6 caractères min).';
+    }
+    if (!faculte) nextErrors.faculte = 'Faculté obligatoire.';
+    if (faculte && specialitesList.length > 0 && !specialite) {
+      nextErrors.specialite = 'Spécialité obligatoire.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      return;
+    }
+    setFieldErrors({});
+    try {
+      await signUpStudent({
+        email,
+        password,
+        name: `${prenom} ${nom}`.trim(),
+        faculte,
+        specialite,
+        idUniversitaire,
+        competences,
+      });
+      navigate('/dashboard');
+    } catch {
+      setFormError('Erreur lors de la création du compte. Vérifiez vos informations.');
+    }
   };
 
   return (
@@ -83,15 +113,23 @@ export default function SignupStudentPage() {
             <p className="text-muted-foreground mt-1">Créez votre compte étudiant</p>
           </div>
 
+          {formError && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+              {formError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nom</Label>
                 <Input placeholder="Ben Ali" value={nom} onChange={(e) => setNom(e.target.value)} required />
+                {fieldErrors.nom && <p className="text-xs text-destructive">{fieldErrors.nom}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Prénom</Label>
                 <Input placeholder="Ahmed" value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
+                {fieldErrors.prenom && <p className="text-xs text-destructive">{fieldErrors.prenom}</p>}
               </div>
             </div>
             <div className="space-y-2">
@@ -103,6 +141,7 @@ export default function SignupStudentPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label>Mot de passe</Label>
@@ -113,6 +152,7 @@ export default function SignupStudentPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              {fieldErrors.password && <p className="text-xs text-destructive">{fieldErrors.password}</p>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -123,6 +163,7 @@ export default function SignupStudentPage() {
                     {facultesList.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {fieldErrors.faculte && <p className="text-xs text-destructive">{fieldErrors.faculte}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Spécialité</Label>
@@ -132,6 +173,7 @@ export default function SignupStudentPage() {
                     {specialitesList.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                {fieldErrors.specialite && <p className="text-xs text-destructive">{fieldErrors.specialite}</p>}
               </div>
             </div>
             <div className="space-y-2">

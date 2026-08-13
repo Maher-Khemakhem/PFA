@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { AdminUser, deleteUser, fetchAdminStudents } from '@/lib/api';
 import { Search, User, GraduationCap, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,7 +13,9 @@ import { SmartImage } from '@/components/SmartImage';
 import { avatarPhoto, imageCandidates } from '@/lib/images';
 
 export default function AdminStudentsPage() {
+  const PAGE_SIZE = 10;
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
   const { data: students = [], isLoading } = useQuery<AdminUser[]>({
@@ -43,6 +46,16 @@ export default function AdminStudentsPage() {
     s.email.toLowerCase().includes(search.toLowerCase()) ||
     (s.idUniversitaire ?? '').toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedStudents = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <DashboardLayout>
@@ -107,7 +120,7 @@ export default function AdminStudentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(s => (
+                  {pagedStudents.map(s => (
                     <tr key={s.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -192,6 +205,48 @@ export default function AdminStudentsPage() {
             </div>
           )}
         </div>
+
+        {filtered.length > PAGE_SIZE && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPage((prev) => Math.max(1, prev - 1));
+                  }}
+                />
+              </PaginationItem>
+              {Array.from({ length: totalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href="#"
+                      isActive={pageNumber === page}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setPage(pageNumber);
+                      }}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPage((prev) => Math.min(totalPages, prev + 1));
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </DashboardLayout>
   );

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Plus, User, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SmartImage } from '@/components/SmartImage';
@@ -32,6 +33,7 @@ function clampPercent(value: number) {
 }
 
 export default function MembersPage() {
+  const PAGE_SIZE = 10;
   const { userName } = useAuth();
   const queryClient = useQueryClient();
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -41,6 +43,8 @@ export default function MembersPage() {
   const [editingMemberEmail, setEditingMemberEmail] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [memberPage, setMemberPage] = useState(1);
+  const [statsPage, setStatsPage] = useState(1);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['org-projects', userName],
@@ -54,12 +58,19 @@ export default function MembersPage() {
     }
   }, [projects, selectedProjectId]);
 
+  useEffect(() => {
+    setMemberPage(1);
+    setStatsPage(1);
+  }, [selectedProjectId]);
+
   const selectedProject = useMemo(
     () => projects.find((p) => p.id === selectedProjectId) || null,
     [projects, selectedProjectId]
   );
 
   const members = useMemo<ProjectMember[]>(() => selectedProject?.membres || [], [selectedProject]);
+  const membersTotalPages = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const pagedMembers = members.slice((memberPage - 1) * PAGE_SIZE, memberPage * PAGE_SIZE);
 
   const memberStats = useMemo(() => {
     if (!selectedProject) return [];
@@ -90,6 +101,16 @@ export default function MembersPage() {
       };
     });
   }, [members, selectedProject]);
+  const statsTotalPages = Math.max(1, Math.ceil(memberStats.length / PAGE_SIZE));
+  const pagedMemberStats = memberStats.slice((statsPage - 1) * PAGE_SIZE, statsPage * PAGE_SIZE);
+
+  useEffect(() => {
+    if (memberPage > membersTotalPages) setMemberPage(membersTotalPages);
+  }, [memberPage, membersTotalPages]);
+
+  useEffect(() => {
+    if (statsPage > statsTotalPages) setStatsPage(statsTotalPages);
+  }, [statsPage, statsTotalPages]);
 
   const addMutation = useMutation({
     mutationFn: (payload: { email: string; role: ProjectMember['role'] }) =>
@@ -243,7 +264,7 @@ export default function MembersPage() {
             <div className="p-8 text-center text-muted-foreground">Aucun membre</div>
           ) : (
             <div className="divide-y">
-              {members.map(m => {
+              {pagedMembers.map(m => {
                 const isChef = selectedProject.chefDeProjet === m.email;
                 return (
                   <div key={m.id} className="flex items-center justify-between px-5 py-4 hover:bg-muted/20 transition-colors">
@@ -336,13 +357,55 @@ export default function MembersPage() {
           )}
         </div>
 
+        {members.length > PAGE_SIZE && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setMemberPage((prev) => Math.max(1, prev - 1));
+                  }}
+                />
+              </PaginationItem>
+              {Array.from({ length: membersTotalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href="#"
+                      isActive={pageNumber === memberPage}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setMemberPage(pageNumber);
+                      }}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setMemberPage((prev) => Math.min(membersTotalPages, prev + 1));
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
+
         {selectedProject && memberStats.length > 0 && (
           <div className="bg-card rounded-xl border overflow-hidden">
             <div className="p-4 border-b">
               <h2 className="font-medium">Performance des membres</h2>
             </div>
             <div className="divide-y">
-              {memberStats.map((stat) => (
+              {pagedMemberStats.map((stat) => (
                 <div key={stat.email} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                   <div>
                     <p className="text-sm font-medium">{stat.name}</p>
@@ -396,6 +459,48 @@ export default function MembersPage() {
               ))}
             </div>
           </div>
+        )}
+
+        {memberStats.length > PAGE_SIZE && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setStatsPage((prev) => Math.max(1, prev - 1));
+                  }}
+                />
+              </PaginationItem>
+              {Array.from({ length: statsTotalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href="#"
+                      isActive={pageNumber === statsPage}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setStatsPage(pageNumber);
+                      }}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setStatsPage((prev) => Math.min(statsTotalPages, prev + 1));
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
       </div>
     </DashboardLayout>

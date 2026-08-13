@@ -42,6 +42,9 @@ export default function EditProfilePage() {
   const [responsableTelephone, setResponsableTelephone] = useState('');
   const [sponsorsText, setSponsorsText] = useState('');
   const [logo, setLogo] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const normalizePhone = (value: string) => value.replace(/[^\d]/g, "");
 
   useEffect(() => {
     if (currentUser) {
@@ -74,6 +77,23 @@ export default function EditProfilePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const nextErrors: Record<string, string> = {};
+    if (!name.trim()) nextErrors.name = 'Nom obligatoire.';
+    if (responsableEmail && !emailPattern.test(responsableEmail.trim())) {
+      nextErrors.responsableEmail = 'Email du responsable invalide.';
+    }
+    if (responsableTelephone) {
+      const phoneDigits = normalizePhone(responsableTelephone);
+      if (phoneDigits.length < 8 || phoneDigits.length > 15) {
+        nextErrors.responsableTelephone = 'Numéro de téléphone invalide.';
+      }
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      toast.error('Veuillez corriger les champs en erreur');
+      return;
+    }
+    setFieldErrors({});
     updateMutation.mutate({
       name,
       faculte,
@@ -135,6 +155,7 @@ export default function EditProfilePage() {
               onChange={(e) => setName(e.target.value)}
               required
             />
+            {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
           </div>
 
           {currentUser.role === 'student' && (
@@ -219,12 +240,18 @@ export default function EditProfilePage() {
                 <div className="space-y-2">
                   <Label>Email responsable</Label>
                   <Input type="email" value={responsableEmail} onChange={(e) => setResponsableEmail(e.target.value)} />
+                  {fieldErrors.responsableEmail && (
+                    <p className="text-xs text-destructive">{fieldErrors.responsableEmail}</p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Téléphone responsable</Label>
                 <Input value={responsableTelephone} onChange={(e) => setResponsableTelephone(e.target.value)} />
+                {fieldErrors.responsableTelephone && (
+                  <p className="text-xs text-destructive">{fieldErrors.responsableTelephone}</p>
+                )}
               </div>
 
               <div className="space-y-2">

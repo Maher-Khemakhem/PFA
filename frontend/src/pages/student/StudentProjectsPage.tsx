@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -10,15 +10,18 @@ import { Project } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Search, Eye, FolderKanban } from 'lucide-react';
 import { SmartImage } from '@/components/SmartImage';
 import { imageCandidates, projectPhoto } from '@/lib/images';
 
 export default function StudentProjectsPage() {
+  const PAGE_SIZE = 10;
   const { userEmail } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [page, setPage] = useState(1);
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ['projects', 'mine'],
@@ -39,6 +42,16 @@ export default function StudentProjectsPage() {
     const matchCategory = categoryFilter === 'all' || p.categorie === categoryFilter;
     return matchSearch && matchStatus && matchCategory;
   });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedProjects = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, categoryFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <DashboardLayout>
@@ -123,7 +136,7 @@ export default function StudentProjectsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(p => {
+                  {pagedProjects.map(p => {
                     const isChef = p.chefDeProjet === userEmail;
                     return (
                       <tr key={p.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
@@ -166,6 +179,48 @@ export default function StudentProjectsPage() {
             </div>
           )}
         </div>
+
+        {filtered.length > PAGE_SIZE && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPage((prev) => Math.max(1, prev - 1));
+                  }}
+                />
+              </PaginationItem>
+              {Array.from({ length: totalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href="#"
+                      isActive={pageNumber === page}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setPage(pageNumber);
+                      }}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPage((prev) => Math.min(totalPages, prev + 1));
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </DashboardLayout>
   );

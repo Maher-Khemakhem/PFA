@@ -23,12 +23,28 @@ export default function LoginPage() {
   const [role, setRole] = useState<UserRole>('student');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const nextErrors: { email?: string; password?: string } = {};
+    if (!email.trim()) {
+      nextErrors.email = 'Email obligatoire.';
+    } else if (!emailPattern.test(email.trim())) {
+      nextErrors.email = 'Email invalide.';
+    }
+    if (!password.trim()) {
+      nextErrors.password = 'Mot de passe obligatoire.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      return;
+    }
+    setFieldErrors({});
     try {
       const resolvedRole = await signIn(email, password, role);
       const target = resolvedRole === 'admin'
@@ -88,6 +104,9 @@ export default function LoginPage() {
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" placeholder="votre.email@fst.utm.tn" value={email} onChange={e => setEmail(e.target.value)} />
+              {fieldErrors.email && (
+                <p className="text-xs text-destructive">{fieldErrors.email}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Rôle</Label>
@@ -108,6 +127,9 @@ export default function LoginPage() {
                   {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p className="text-xs text-destructive">{fieldErrors.password}</p>
+              )}
               <Link to="#" className="text-xs text-primary hover:underline">Mot de passe oublié ?</Link>
             </div>
             <Button type="submit" className="w-full gradient-primary border-0 text-primary-foreground">Connexion</Button>

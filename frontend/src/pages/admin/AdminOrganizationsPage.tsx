@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { AdminUser, deleteUser, fetchAdminOrganizations } from '@/lib/api';
 import { Search, Building2, Trash2, Eye, FolderKanban, CalendarDays } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -13,7 +14,9 @@ import { SmartImage } from '@/components/SmartImage';
 import { imageCandidates, organizationPhoto } from '@/lib/images';
 
 export default function AdminOrganizationsPage() {
+  const PAGE_SIZE = 10;
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
   const { data: orgs = [], isLoading } = useQuery<AdminUser[]>({
@@ -44,6 +47,16 @@ export default function AdminOrganizationsPage() {
     o.email.toLowerCase().includes(search.toLowerCase()) ||
     (o.organizationType ?? '').toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const pagedOrgs = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const typeColor = (type?: string) => {
     if (type === 'Club') return 'bg-primary/10 text-primary';
@@ -103,7 +116,7 @@ export default function AdminOrganizationsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map(o => (
+            {pagedOrgs.map(o => (
               <div key={o.id} className="bg-card rounded-xl border p-5 hover:shadow-elevated transition-shadow space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -202,6 +215,48 @@ export default function AdminOrganizationsPage() {
               </div>
             ))}
           </div>
+        )}
+
+        {filtered.length > PAGE_SIZE && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPage((prev) => Math.max(1, prev - 1));
+                  }}
+                />
+              </PaginationItem>
+              {Array.from({ length: totalPages }, (_, index) => {
+                const pageNumber = index + 1;
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href="#"
+                      isActive={pageNumber === page}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setPage(pageNumber);
+                      }}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  href="#"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPage((prev) => Math.min(totalPages, prev + 1));
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
       </div>
     </DashboardLayout>

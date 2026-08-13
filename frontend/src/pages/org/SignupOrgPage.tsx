@@ -24,6 +24,10 @@ export default function SignupOrgPage() {
   const [responsableNom, setResponsableNom] = useState("");
   const [responsableEmail, setResponsableEmail] = useState("");
   const [responsableTelephone, setResponsableTelephone] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const emailPattern = /^[^\s@]+@[^\s@-]+-fst\.utm\.tn$/i;
+  const normalizePhone = (value: string) => value.replace(/[^\d]/g, "");
 
   const addSponsor = () => setSponsors([...sponsors, { nom: '', logo: '', lien: '' }]);
   const removeSponsor = (i: number) => setSponsors(sponsors.filter((_, idx) => idx !== i));
@@ -35,17 +39,50 @@ export default function SignupOrgPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUpOrganization({
-      email,
-      password,
-      name: clubName,
-      organizationType,
-      responsableNom,
-      responsableEmail,
-      responsableTelephone,
-      sponsors: sponsors.map(s => s.nom),
-    });
-    navigate('/dashboard');
+    setFormError(null);
+    const nextErrors: Record<string, string> = {};
+    if (!clubName.trim()) nextErrors.clubName = 'Nom obligatoire.';
+    if (!organizationType) nextErrors.organizationType = 'Type obligatoire.';
+    if (email.trim() && !emailPattern.test(email.trim())) {
+      nextErrors.email = 'Email invalide (ex: contact@club-fst.utm.tn).';
+    }
+    if (!password.trim()) {
+      nextErrors.password = 'Mot de passe obligatoire.';
+    } else if (password.trim().length < 6) {
+      nextErrors.password = 'Mot de passe trop court (6 caractères min).';
+    }
+    if (!responsableNom.trim()) nextErrors.responsableNom = 'Nom du responsable obligatoire.';
+    if (!responsableEmail.trim()) {
+      nextErrors.responsableEmail = 'Email du responsable obligatoire.';
+    } else if (!emailPattern.test(responsableEmail.trim())) {
+      nextErrors.responsableEmail = 'Email du responsable invalide (ex: prenom@club-fst.utm.tn).';
+    }
+    const phoneDigits = normalizePhone(responsableTelephone);
+    if (!responsableTelephone.trim()) {
+      nextErrors.responsableTelephone = 'Téléphone obligatoire.';
+    } else if (phoneDigits.length < 8 || phoneDigits.length > 15) {
+      nextErrors.responsableTelephone = 'Numéro de téléphone invalide.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      return;
+    }
+    setFieldErrors({});
+    try {
+      await signUpOrganization({
+        email,
+        password,
+        name: clubName,
+        organizationType,
+        responsableNom,
+        responsableEmail,
+        responsableTelephone,
+        sponsors: sponsors.map(s => s.nom),
+      });
+      navigate('/dashboard');
+    } catch {
+      setFormError('Erreur lors de la création du compte. Vérifiez vos informations.');
+    }
   };
 
   return (
@@ -63,10 +100,17 @@ export default function SignupOrgPage() {
             <p className="text-muted-foreground mt-1">Créez votre compte organisationnel</p>
           </div>
 
+          {formError && (
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive">
+              {formError}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label>Nom du club / association / département</Label>
               <Input placeholder="Club IEEE FST" value={clubName} onChange={(e) => setClubName(e.target.value)} />
+              {fieldErrors.clubName && <p className="text-xs text-destructive">{fieldErrors.clubName}</p>}
             </div>
             <div className="space-y-2">
               <Label>Type</Label>
@@ -78,6 +122,7 @@ export default function SignupOrgPage() {
                   <SelectItem value="Département">Département</SelectItem>
                 </SelectContent>
               </Select>
+              {fieldErrors.organizationType && <p className="text-xs text-destructive">{fieldErrors.organizationType}</p>}
             </div>
             <div className="space-y-2">
               <Label>Email officiel (optionnel)</Label>
@@ -87,6 +132,7 @@ export default function SignupOrgPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
+              {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label>Mot de passe</Label>
@@ -96,14 +142,18 @@ export default function SignupOrgPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              {fieldErrors.password && <p className="text-xs text-destructive">{fieldErrors.password}</p>}
             </div>
 
             <div className="p-4 rounded-xl bg-muted/50 space-y-3">
               <Label className="text-sm font-semibold">Infos du responsable</Label>
               <div className="space-y-2">
                 <Input placeholder="Nom du responsable" value={responsableNom} onChange={(e) => setResponsableNom(e.target.value)} />
+                {fieldErrors.responsableNom && <p className="text-xs text-destructive">{fieldErrors.responsableNom}</p>}
                 <Input type="email" placeholder="Email" value={responsableEmail} onChange={(e) => setResponsableEmail(e.target.value)} />
+                {fieldErrors.responsableEmail && <p className="text-xs text-destructive">{fieldErrors.responsableEmail}</p>}
                 <Input type="tel" placeholder="Téléphone" value={responsableTelephone} onChange={(e) => setResponsableTelephone(e.target.value)} />
+                {fieldErrors.responsableTelephone && <p className="text-xs text-destructive">{fieldErrors.responsableTelephone}</p>}
               </div>
             </div>
 

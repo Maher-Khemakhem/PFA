@@ -6,9 +6,9 @@ spring:
     name: AUTH-SERVICE
 
   datasource:
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/auth_db?createDatabaseIfNotExist=true
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3308}/auth_db?createDatabaseIfNotExist=true
     username: root
-    password: ${MYSQL_PASSWORD:foufoufourat123}
+    password: ${MYSQL_PASSWORD:}
 
   jpa:
     hibernate:

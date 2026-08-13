@@ -19,11 +19,13 @@ export default function CreateProjectPage() {
   const [titre, setTitre] = useState('');
   const [description, setDescription] = useState('');
   const [organisation, setOrganisation] = useState('');
+  const [startDate, setStartDate] = useState('');
   const [deadline, setDeadline] = useState('');
   const [chefProjet, setChefProjet] = useState('');
   const [visibilite, setVisibilite] = useState<'PUBLIC' | 'PRIVE'>('PUBLIC');
   const [ressourceNom, setRessourceNom] = useState('');
   const [ressourceLien, setRessourceLien] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (userName && organisation !== userName) {
@@ -51,11 +53,22 @@ export default function CreateProjectPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!titre.trim() || !description.trim() || !organisation || !deadline || !chefProjet.trim()) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    const nextErrors: Record<string, string> = {};
+    if (!titre.trim()) nextErrors.titre = 'Titre obligatoire.';
+    if (!description.trim()) nextErrors.description = 'Description obligatoire.';
+    if (!organisation) nextErrors.organisation = 'Organisation obligatoire.';
+    if (!chefProjet.trim()) nextErrors.chefProjet = 'Chef de projet obligatoire.';
+    if (!startDate) nextErrors.startDate = 'Date de début obligatoire.';
+    if (!deadline) nextErrors.deadline = 'Date de fin obligatoire.';
+    if (startDate && deadline && new Date(startDate) > new Date(deadline)) {
+      nextErrors.deadline = 'La date de fin doit être après la date de début.';
+    }
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
+      toast.error('Veuillez corriger les champs en erreur');
       return;
     }
+    setFieldErrors({});
 
     createMutation.mutate({
       titre,
@@ -83,6 +96,7 @@ export default function CreateProjectPage() {
               value={titre}
               onChange={(e) => setTitre(e.target.value)}
             />
+            {fieldErrors.titre && <p className="text-xs text-destructive">{fieldErrors.titre}</p>}
           </div>
           <div className="space-y-2">
             <Label>Description</Label>
@@ -92,15 +106,18 @@ export default function CreateProjectPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+            {fieldErrors.description && <p className="text-xs text-destructive">{fieldErrors.description}</p>}
           </div>
           <div className="space-y-2">
             <Label>Organisation</Label>
             <Input value={organisation} readOnly />
+            {fieldErrors.organisation && <p className="text-xs text-destructive">{fieldErrors.organisation}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Date de début</Label>
-              <Input type="date" />
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              {fieldErrors.startDate && <p className="text-xs text-destructive">{fieldErrors.startDate}</p>}
             </div>
             <div className="space-y-2">
               <Label>Date de fin</Label>
@@ -109,11 +126,13 @@ export default function CreateProjectPage() {
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
               />
+              {fieldErrors.deadline && <p className="text-xs text-destructive">{fieldErrors.deadline}</p>}
             </div>
           </div>
           <div className="space-y-2">
             <Label>Chef de projet (Email)</Label>
             <Input value={chefProjet} readOnly />
+            {fieldErrors.chefProjet && <p className="text-xs text-destructive">{fieldErrors.chefProjet}</p>}
           </div>
           <div className="space-y-2">
             <Label>VisibilitÃ©</Label>
