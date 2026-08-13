@@ -1,0 +1,15 @@
+tn\fst\authservice\dto\LoginRequest.class
+tn\fst\authservice\entity\User$UserBuilder.class
+tn\fst\authservice\security\JwtFilter.class
+tn\fst\authservice\dto\AuthResponse.class
+tn\fst\authservice\entity\Role.class
+tn\fst\authservice\controller\AuthController.class
+tn\fst\authservice\security\CustomUserDetailsService.class
+tn\fst\authservice\repository\UserRepository.class
+tn\fst\authservice\AuthServiceApplication.class
+tn\fst\authservice\config\SecurityConfig.class
+tn\fst\authservice\security\JwtService.class
+tn\fst\authservice\entity\User.class
+tn\fst\authservice\dto\RegisterRequest.class
+tn\fst\authservice\config\BeansConfig.class
+tn\fst\authservice\service\AuthService.class

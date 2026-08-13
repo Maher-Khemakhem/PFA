@@ -11,5 +11,9 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "jspdf": "^4.2.1",
+    "three": "^0.184.0"
   }
 }

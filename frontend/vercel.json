@@ -8,6 +8,18 @@
       "destination": "https://fsteam.vercel.app/api/$1"
     },
     {
+      "source": "/auth/(.*)",
+      "destination": "https://fsteam.vercel.app/auth/$1"
+    },
+    {
+      "source": "/projets/(.*)",
+      "destination": "https://fsteam.vercel.app/projets/$1"
+    },
+    {
+      "source": "/projets",
+      "destination": "https://fsteam.vercel.app/projets"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
